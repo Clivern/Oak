@@ -9,8 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        otp: ['25.1']
-        elixir: ['1.13.0', '1.13.1', '1.13.2', '1.13.3', '1.13.4', '1.14.0', '1.14.1']
+        otp: ['27.1']
+        elixir: [ '1.14.5', '1.15.8', '1.16.3', '1.17.3', '1.18.4']
     steps:
       - uses: actions/checkout@v5
       - uses: erlef/setup-beam@v1
