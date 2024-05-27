@@ -118,6 +118,99 @@ defmodule Oak.Metric.SummaryTest do
 
       assert Summary.quantile(summary, 0.5) == 10.0
     end
+
+    # Comprehensive quantile validation tests
+    test "validates quantile calculation for various percentiles" do
+      # Test data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      summary =
+        Summary.new("test_summary", "Test summary")
+        |> Summary.observe(1.0)
+        |> Summary.observe(2.0)
+        |> Summary.observe(3.0)
+        |> Summary.observe(4.0)
+        |> Summary.observe(5.0)
+        |> Summary.observe(6.0)
+        |> Summary.observe(7.0)
+        |> Summary.observe(8.0)
+        |> Summary.observe(9.0)
+        |> Summary.observe(10.0)
+
+      # 10th percentile (0.1) should be 1
+      assert Summary.quantile(summary, 0.1) == 1.0
+      # 25th percentile (0.25) should be 3
+      assert Summary.quantile(summary, 0.25) == 3.0
+      # 50th percentile (0.5) should be 5 or 6 (median)
+      assert Summary.quantile(summary, 0.5) == 5.0
+      # 75th percentile (0.75) should be 8
+      assert Summary.quantile(summary, 0.75) == 8.0
+      # 90th percentile (0.9) should be 9
+      assert Summary.quantile(summary, 0.9) == 9.0
+      # 95th percentile (0.95) should be 10
+      assert Summary.quantile(summary, 0.95) == 10.0
+      # 99th percentile (0.99) should be 10
+      assert Summary.quantile(summary, 0.99) == 10.0
+    end
+
+    test "validates edge case quantiles" do
+      summary =
+        Summary.new("test_summary", "Test summary")
+        |> Summary.observe(100.0)
+
+      # 0th percentile should be the minimum value
+      assert Summary.quantile(summary, 0.0) == 100.0
+      # 1st percentile should be the minimum value
+      assert Summary.quantile(summary, 0.01) == 100.0
+      # 100th percentile should be the maximum value
+      assert Summary.quantile(summary, 1.0) == 100.0
+    end
+
+    test "validates quantile calculation with even number of observations" do
+      # Test data: [1, 2, 3, 4] (even number)
+      summary =
+        Summary.new("test_summary", "Test summary")
+        |> Summary.observe(1.0)
+        |> Summary.observe(2.0)
+        |> Summary.observe(3.0)
+        |> Summary.observe(4.0)
+
+      # 50th percentile with even observations
+      assert Summary.quantile(summary, 0.5) == 2.5
+      # 75th percentile
+      assert Summary.quantile(summary, 0.75) == 3.25
+    end
+
+    test "validates quantile calculation with odd number of observations" do
+      # Test data: [1, 2, 3, 4, 5] (odd number)
+      summary =
+        Summary.new("test_summary", "Test summary")
+        |> Summary.observe(1.0)
+        |> Summary.observe(2.0)
+        |> Summary.observe(3.0)
+        |> Summary.observe(4.0)
+        |> Summary.observe(5.0)
+
+      # 50th percentile with odd observations
+      assert Summary.quantile(summary, 0.5) == 3.0
+      # 80th percentile
+      assert Summary.quantile(summary, 0.8) == 4.2
+    end
+
+    test "validates quantile calculation with duplicate values" do
+      # Test data: [1, 1, 1, 5, 5, 5]
+      summary =
+        Summary.new("test_summary", "Test summary")
+        |> Summary.observe(1.0)
+        |> Summary.observe(1.0)
+        |> Summary.observe(1.0)
+        |> Summary.observe(5.0)
+        |> Summary.observe(5.0)
+        |> Summary.observe(5.0)
+
+      # 50th percentile should be 1 (middle of sorted array)
+      assert Summary.quantile(summary, 0.5) == 3.0
+      # 90th percentile should be 5
+      assert Summary.quantile(summary, 0.9) == 5.0
+    end
   end
 
   describe "to_string/1" do

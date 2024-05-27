@@ -177,7 +177,10 @@ defmodule Oak.Metric.HistogramTest do
 
     test "returns cumulative sum after multiple observations" do
       histogram = Histogram.new("test", "Test histogram", [0.1, 0.3, 0.5])
-      updated = histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
+      updated =
+        histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
       assert Histogram.sum(updated) == 1.2000000000000002
     end
   end
@@ -196,7 +199,10 @@ defmodule Oak.Metric.HistogramTest do
 
     test "returns cumulative count after multiple observations" do
       histogram = Histogram.new("test", "Test histogram", [0.1, 0.3, 0.5])
-      updated = histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
+      updated =
+        histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
       assert Histogram.count(updated) == 3
     end
   end
@@ -215,7 +221,10 @@ defmodule Oak.Metric.HistogramTest do
 
     test "returns updated bucket counts after multiple observations" do
       histogram = Histogram.new("test", "Test histogram", [0.1, 0.3, 0.5])
-      updated = histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
+      updated =
+        histogram |> Histogram.observe(0.2) |> Histogram.observe(0.4) |> Histogram.observe(0.6)
+
       bucket_counts = Histogram.bucket_counts(updated)
       assert bucket_counts[0.1] == 0
       assert bucket_counts[0.3] == 1
@@ -296,7 +305,9 @@ defmodule Oak.Metric.HistogramTest do
     end
 
     test "formats histogram with special characters in name" do
-      histogram = Histogram.new("http_request_duration_seconds", "HTTP request duration", [0.1, 0.3, 0.5])
+      histogram =
+        Histogram.new("http_request_duration_seconds", "HTTP request duration", [0.1, 0.3, 0.5])
+
       result = Histogram.to_string(histogram)
 
       assert String.contains?(result, "http_request_duration_seconds_bucket")
