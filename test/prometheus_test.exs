@@ -5,8 +5,10 @@ defmodule Oak.PrometheusTest do
   alias Oak.Metric.{Counter, Gauge, Histogram, Summary}
 
   setup do
-    # Start a fresh MetricsStore for each test
-    {:ok, store_pid} = MetricsStore.start_link()
+    # Start a fresh MetricsStore for each test with a unique name
+    test_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
+    name = String.to_atom("test_store_#{test_id}")
+    {:ok, store_pid} = GenServer.start_link(MetricsStore, %{}, name: name)
     %{store: store_pid}
   end
 
