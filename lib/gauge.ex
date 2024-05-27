@@ -13,8 +13,18 @@ defmodule Oak.Metric.Gauge do
 
   @doc """
   Creates a new Gauge metric.
+
+  ## Parameters
+
+  * `name` - The name of the gauge
+  * `help` - The help text of the gauge
+  * `labels` - The labels of the gauge
   """
   def new(name, help, labels \\ %{}) do
+    if name == "" or help == "" do
+      raise "name and help cannot be empty"
+    end
+
     %__MODULE__{
       name: name,
       help: help,
@@ -25,6 +35,11 @@ defmodule Oak.Metric.Gauge do
 
   @doc """
   Sets the gauge value to the given amount.
+
+  ## Parameters
+
+  * `gauge` - The gauge to set
+  * `value` - The value to set
   """
   def set(gauge, value) when is_number(value) do
     %{gauge | value: value}
@@ -32,6 +47,11 @@ defmodule Oak.Metric.Gauge do
 
   @doc """
   Increments the gauge by the given amount.
+
+  ## Parameters
+
+  * `gauge` - The gauge to increment
+  * `amount` - The amount to increment by (defaults to 1)
   """
   def inc(gauge, amount \\ 1) when is_number(amount) do
     %{gauge | value: gauge.value + amount}
@@ -39,6 +59,11 @@ defmodule Oak.Metric.Gauge do
 
   @doc """
   Decrements the gauge by the given amount.
+
+  ## Parameters
+
+  * `gauge` - The gauge to decrement
+  * `amount` - The amount to decrement by (defaults to 1)
   """
   def dec(gauge, amount \\ 1) when is_number(amount) do
     %{gauge | value: gauge.value - amount}
@@ -46,11 +71,19 @@ defmodule Oak.Metric.Gauge do
 
   @doc """
   Returns the current value of the gauge.
+
+  ## Parameters
+
+  * `gauge` - The gauge to get the value from
   """
   def value(gauge), do: gauge.value
 
   @doc """
   Returns a string representation of the gauge in Prometheus exposition format.
+
+  ## Parameters
+
+  * `gauge` - The gauge to convert to a string
   """
   def to_string(gauge) do
     labels_str =

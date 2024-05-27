@@ -22,20 +22,19 @@ defmodule Oak.Metric.GaugeTest do
       assert gauge.labels == %{label1: "value1", label2: "value2"}
     end
 
-    test "creates a new gauge with empty string name and help" do
-      gauge = Gauge.new("", "")
-      assert gauge.name == ""
-      assert gauge.help == ""
-      assert gauge.value == 0
+    test "raises error when name and help are empty" do
+      assert_raise RuntimeError, fn ->
+        Gauge.new("", "")
+      end
     end
 
-    test "creates a new gauge with special characters in name and help" do
+    test "Creates a new gauge with special characters in name and help" do
       gauge = Gauge.new("gauge_with_special_chars_123", "Help with special chars: !@#$%^&*()")
       assert gauge.name == "gauge_with_special_chars_123"
       assert gauge.help == "Help with special chars: !@#$%^&*()"
     end
 
-    test "creates a new gauge with complex label values" do
+    test "Creates a new gauge with complex label values" do
       labels = %{
         "string_label" => "value with spaces",
         :atom_label => "value_with_underscores",
@@ -50,37 +49,37 @@ defmodule Oak.Metric.GaugeTest do
   end
 
   describe "set/2" do
-    test "sets the gauge value to the given amount" do
+    test "Sets the gauge value to the given amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       assert gauge.value == 10
     end
 
-    test "sets the gauge value to zero" do
+    test "Sets the gauge value to zero" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 0)
       assert gauge.value == 0
     end
 
-    test "sets the gauge value to negative numbers" do
+    test "Sets the gauge value to negative numbers" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, -5)
       assert gauge.value == -5
     end
 
-    test "sets the gauge value to large numbers" do
+    test "Sets the gauge value to large numbers" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 1_000_000)
       assert gauge.value == 1_000_000
     end
 
-    test "sets the gauge value to decimal numbers" do
+    test "Sets the gauge value to decimal numbers" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 3.14159)
       assert gauge.value == 3.14159
     end
 
-    test "overwrites previous value when setting multiple times" do
+    test "Overwrites previous value when setting multiple times" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.set(gauge, 20)
@@ -90,48 +89,48 @@ defmodule Oak.Metric.GaugeTest do
   end
 
   describe "inc/2" do
-    test "increments the gauge by the given amount" do
+    test "Increments the gauge by the given amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.inc(gauge, 5)
       assert gauge.value == 15
     end
 
-    test "increments the gauge by default amount" do
+    test "Increments the gauge by default amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.inc(gauge)
       assert gauge.value == 11
     end
 
-    test "increments from zero" do
+    test "Increments from zero" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.inc(gauge, 5)
       assert gauge.value == 5
     end
 
-    test "increments by negative amount (decrements)" do
+    test "Increments by negative amount (decrements)" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.inc(gauge, -3)
       assert gauge.value == 7
     end
 
-    test "increments by zero (no change)" do
+    test "Increments by zero (no change)" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.inc(gauge, 0)
       assert gauge.value == 10
     end
 
-    test "increments by decimal amount" do
+    test "Increments by decimal amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10.5)
       gauge = Gauge.inc(gauge, 2.3)
       assert gauge.value == 12.8
     end
 
-    test "increments multiple times" do
+    test "Increments multiple times" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.inc(gauge, 1)
       gauge = Gauge.inc(gauge, 2)
@@ -141,49 +140,49 @@ defmodule Oak.Metric.GaugeTest do
   end
 
   describe "dec/2" do
-    test "decrements the gauge by the given amount" do
+    test "Decrements the gauge by the given amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.dec(gauge, 5)
       assert gauge.value == 5
     end
 
-    test "decrements the gauge by default amount" do
+    test "Decrements the gauge by default amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.dec(gauge)
       assert gauge.value == 9
     end
 
-    test "decrements to negative values" do
+    test "Decrements to negative values" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 5)
       gauge = Gauge.dec(gauge, 10)
       assert gauge.value == -5
     end
 
-    test "decrements by negative amount (increments)" do
+    test "Decrements by negative amount (increments)" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.dec(gauge, -3)
       assert gauge.value == 13
     end
 
-    test "decrements by zero (no change)" do
+    test "Decrements by zero (no change)" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
       gauge = Gauge.dec(gauge, 0)
       assert gauge.value == 10
     end
 
-    test "decrements by decimal amount" do
+    test "Decrements by decimal amount" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10.5)
       gauge = Gauge.dec(gauge, 2.3)
       assert gauge.value == 8.2
     end
 
-    test "decrements multiple times" do
+    test "Decrements multiple times" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 20)
       gauge = Gauge.dec(gauge, 5)
@@ -219,7 +218,7 @@ defmodule Oak.Metric.GaugeTest do
   end
 
   describe "to_string/1" do
-    test "returns a string representation of the gauge in Prometheus exposition format" do
+    test "Returns a string representation of the gauge in Prometheus exposition format" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 10)
 
@@ -232,7 +231,7 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "returns a string representation of the gauge with labels in Prometheus exposition format" do
+    test "Returns a string representation of the gauge with labels in Prometheus exposition format" do
       gauge =
         Gauge.new("my_gauge", "Description of my gauge", %{label1: "value1", label2: "value2"})
 
@@ -247,7 +246,7 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "handles empty labels correctly" do
+    test "Handles empty labels correctly" do
       gauge = Gauge.new("my_gauge", "Description of my gauge", %{})
       gauge = Gauge.set(gauge, 42)
 
@@ -260,12 +259,14 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "handles labels with special characters" do
-      gauge = Gauge.new("my_gauge", "Description with special chars: !@#", %{
-        "label_with_spaces" => "value with spaces",
-        "label_with_quotes" => "value with \"quotes\"",
-        "label_with_backslashes" => "value\\with\\backslashes"
-      })
+    test "Handles labels with special characters" do
+      gauge =
+        Gauge.new("my_gauge", "Description with special chars: !@#", %{
+          "label_with_spaces" => "value with spaces",
+          "label_with_quotes" => "value with \"quotes\"",
+          "label_with_backslashes" => "value\\with\\backslashes"
+        })
+
       gauge = Gauge.set(gauge, 99)
 
       output = Gauge.to_string(gauge)
@@ -275,7 +276,7 @@ defmodule Oak.Metric.GaugeTest do
       assert String.contains?(output, "label_with_backslashes=\"value\\with\\backslashes\"")
     end
 
-    test "handles negative values in output" do
+    test "Handles negative values in output" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, -42)
 
@@ -288,7 +289,7 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "handles decimal values in output" do
+    test "Handles decimal values in output" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 3.14159)
 
@@ -301,7 +302,7 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "handles zero value in output" do
+    test "Handles zero value in output" do
       gauge = Gauge.new("my_gauge", "Description of my gauge")
       gauge = Gauge.set(gauge, 0)
 
@@ -314,19 +315,15 @@ defmodule Oak.Metric.GaugeTest do
       assert Gauge.to_string(gauge) == expected_output
     end
 
-    test "handles empty name and help" do
-      gauge = Gauge.new("", "")
-      gauge = Gauge.set(gauge, 123)
-
-      output = Gauge.to_string(gauge)
-      assert String.contains?(output, "# HELP")
-      assert String.contains?(output, "# TYPE")
-      assert String.contains?(output, "123")
+    test "Raises error when name and help are empty" do
+      assert_raise RuntimeError, fn ->
+        Gauge.new("", "")
+      end
     end
   end
 
   describe "integration scenarios" do
-    test "complete workflow: create, set, increment, decrement, and format" do
+    test "Complete workflow: create, set, increment, decrement, and format" do
       gauge = Gauge.new("workflow_gauge", "Test complete workflow")
 
       # Initial state
@@ -351,7 +348,7 @@ defmodule Oak.Metric.GaugeTest do
       assert String.contains?(output, "# TYPE workflow_gauge gauge")
     end
 
-    test "gauge with complex label operations" do
+    test "Gauge with complex label operations" do
       labels = %{"env" => "production", "service" => "api"}
       gauge = Gauge.new("complex_gauge", "Complex operations test", labels)
 
@@ -371,7 +368,7 @@ defmodule Oak.Metric.GaugeTest do
       assert String.contains?(output, "service=\"api\"")
     end
 
-    test "gauge value boundaries and edge cases" do
+    test "Gauge value boundaries and edge cases" do
       gauge = Gauge.new("boundary_gauge", "Boundary testing")
 
       # Test very large numbers

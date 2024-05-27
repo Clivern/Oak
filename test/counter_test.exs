@@ -7,7 +7,7 @@ defmodule Oak.Metric.CounterTest do
   alias Oak.Metric.Counter
 
   describe "new/3" do
-    test "creates a new counter with default labels" do
+    test "Creates a new counter with default labels" do
       counter = Counter.new("http_requests_total", "Total number of HTTP requests")
 
       assert counter.name == "http_requests_total"
@@ -16,7 +16,7 @@ defmodule Oak.Metric.CounterTest do
       assert counter.value == 0
     end
 
-    test "creates a new counter with custom labels" do
+    test "Creates a new counter with custom labels" do
       counter =
         Counter.new(
           "http_requests_total",
@@ -24,17 +24,19 @@ defmodule Oak.Metric.CounterTest do
           %{method: "GET"}
         )
 
+      assert counter.name == "http_requests_total"
+      assert counter.help == "Total number of HTTP requests"
+      assert counter.value == 0
       assert counter.labels == %{method: "GET"}
     end
 
-    test "creates a new counter with empty string name and help" do
-      counter = Counter.new("", "")
-      assert counter.name == ""
-      assert counter.help == ""
-      assert counter.value == 0
+    test "Raises error when name and help are empty" do
+      assert_raise RuntimeError, fn ->
+        Counter.new("", "")
+      end
     end
 
-    test "creates a new counter with complex labels" do
+    test "Creates a new counter with complex labels" do
       labels = %{
         method: "POST",
         status: "500",
@@ -43,13 +45,19 @@ defmodule Oak.Metric.CounterTest do
       }
 
       counter = Counter.new("api_errors_total", "Total API errors", labels)
+      assert counter.name == "api_errors_total"
+      assert counter.help == "Total API errors"
+      assert counter.value == 0
       assert counter.labels == labels
       assert map_size(counter.labels) == 4
     end
 
-    test "creates a new counter with numeric labels" do
+    test "Creates a new counter with numeric labels" do
       labels = %{status_code: 404, port: 8080}
       counter = Counter.new("http_errors", "HTTP errors", labels)
+      assert counter.name == "http_errors"
+      assert counter.help == "HTTP errors"
+      assert counter.value == 0
       assert counter.labels == labels
     end
   end
@@ -281,15 +289,6 @@ defmodule Oak.Metric.CounterTest do
                  "# HELP http_requests_total Total number of HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total{method=\"GET\",status=\"200\"} 15\n"
     end
 
-    test "returns string representation with empty name and help" do
-      counter =
-        Counter.new("", "")
-        |> Counter.inc(42)
-
-      assert Counter.to_string(counter) ==
-               "# HELP  \n# TYPE  counter\n 42\n"
-    end
-
     test "returns string representation with complex labels" do
       counter =
         Counter.new("database_queries", "Database query count", %{
@@ -311,7 +310,7 @@ defmodule Oak.Metric.CounterTest do
       assert String.contains?(result, "} 1234")
     end
 
-    test "returns string representation with numeric labels" do
+    test "Returns string representation with numeric labels" do
       counter =
         Counter.new("http_errors", "HTTP error count", %{
           status_code: 500,
@@ -325,14 +324,14 @@ defmodule Oak.Metric.CounterTest do
       assert String.contains?(result, "} 99")
     end
 
-    test "returns string representation with zero value" do
+    test "Returns string representation with zero value" do
       counter = Counter.new("empty_counter", "Empty counter")
 
       assert Counter.to_string(counter) ==
                "# HELP empty_counter Empty counter\n# TYPE empty_counter counter\nempty_counter 0\n"
     end
 
-    test "returns string representation with large value" do
+    test "Returns string representation with large value" do
       large_value = 9_999_999_999
 
       counter =
@@ -345,7 +344,7 @@ defmodule Oak.Metric.CounterTest do
   end
 
   describe "immutability" do
-    test "operations return new counter instances" do
+    test "Operations return new counter instances" do
       original = Counter.new("test_counter", "Test counter")
 
       incremented = Counter.inc(original, 5)
@@ -364,7 +363,7 @@ defmodule Oak.Metric.CounterTest do
       assert original === reset_counter
     end
 
-    test "labels remain unchanged after operations" do
+    test "Labels remain unchanged after operations" do
       labels = %{method: "POST", endpoint: "/api"}
       counter = Counter.new("api_calls", "API calls", labels)
 
@@ -380,7 +379,7 @@ defmodule Oak.Metric.CounterTest do
   end
 
   describe "edge cases" do
-    test "handles very long names and help text" do
+    test "Handles very long names and help text" do
       long_name = String.duplicate("a", 1000)
       long_help = String.duplicate("This is a very long help text. ", 50)
 
@@ -393,7 +392,7 @@ defmodule Oak.Metric.CounterTest do
       assert String.contains?(result, long_help)
     end
 
-    test "handles special characters in names and labels" do
+    test "Handles special characters in names and labels" do
       special_name = "metric-with_underscores.and.dots"
 
       special_labels = %{
@@ -411,7 +410,7 @@ defmodule Oak.Metric.CounterTest do
       assert String.contains?(result, "label.with.dots=\"value-with-dash\"")
     end
 
-    test "handles empty labels map" do
+    test "Handles empty labels map" do
       counter = Counter.new("test", "test", %{})
       assert counter.labels == %{}
 

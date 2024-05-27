@@ -13,9 +13,24 @@ defmodule Oak.Metric.Histogram do
 
   @doc """
   Creates a new Histogram metric.
+
+  ## Parameters
+
+  * `name` - The name of the histogram
+  * `help` - The help text of the histogram
+  * `buckets` - The buckets of the histogram
+  * `labels` - The labels of the histogram
   """
   def new(name, help, buckets, labels \\ %{}) do
+    if name == "" or help == "" do
+      raise "name and help cannot be empty"
+    end
+
     buckets = buckets ++ ["+Inf"]
+
+    if Enum.uniq(buckets) != buckets do
+      raise "buckets must be unique"
+    end
 
     %__MODULE__{
       name: name,
@@ -30,6 +45,11 @@ defmodule Oak.Metric.Histogram do
 
   @doc """
   Observes a value in the histogram.
+
+  ## Parameters
+
+  * `histogram` - The histogram to observe
+  * `value` - The value to observe
   """
   def observe(histogram, value) when is_number(value) do
     updated_bucket_counts =
@@ -49,16 +69,37 @@ defmodule Oak.Metric.Histogram do
 
   @doc """
   Returns the current sum of all observed values.
+
+  ## Parameters
+
+  * `histogram` - The histogram to get the sum from
   """
   def sum(histogram), do: histogram.sum
 
   @doc """
   Returns the current count of observations.
+
+  ## Parameters
+
+  * `histogram` - The histogram to get the count from
   """
   def count(histogram), do: histogram.count
 
   @doc """
+  Returns the current bucket counts.
+
+  ## Parameters
+
+  * `histogram` - The histogram to get the bucket counts from
+  """
+  def bucket_counts(histogram), do: histogram.bucket_counts
+
+  @doc """
   Returns a string representation of the histogram in Prometheus exposition format.
+
+  ## Parameters
+
+  * `histogram` - The histogram to convert to a string
   """
   def to_string(histogram) do
     labels_str =

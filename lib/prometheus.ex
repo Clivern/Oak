@@ -66,6 +66,10 @@ defmodule Oak.Prometheus do
 
   @doc """
   Formats a list of metrics for Prometheus exposition.
+
+  ## Parameters
+
+  * `metrics` - The list of metrics to format
   """
   def format_metrics(metrics) when is_list(metrics) do
     metrics
@@ -85,6 +89,10 @@ defmodule Oak.Prometheus do
 
   @doc """
   Stops the Prometheus server.
+
+  ## Parameters
+
+  * `prometheus` - The Prometheus server to stop
   """
   def stop do
     GenServer.stop(__MODULE__)
