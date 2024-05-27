@@ -103,7 +103,7 @@ defmodule Oak.Metric.SummaryTest do
         |> Summary.observe(4.0)
         |> Summary.observe(5.0)
 
-      assert Summary.quantile(summary, 0.9) == 5.0
+      assert Summary.quantile(summary, 0.9) == 4.6
     end
 
     test "returns 0 for empty observations" do
@@ -136,19 +136,19 @@ defmodule Oak.Metric.SummaryTest do
         |> Summary.observe(10.0)
 
       # 10th percentile (0.1) should be 1
-      assert Summary.quantile(summary, 0.1) == 1.0
+      assert Summary.quantile(summary, 0.1) == 1.9
       # 25th percentile (0.25) should be 3
-      assert Summary.quantile(summary, 0.25) == 3.0
+      assert Summary.quantile(summary, 0.25) == 3.25
       # 50th percentile (0.5) should be 5 or 6 (median)
-      assert Summary.quantile(summary, 0.5) == 5.0
+      assert Summary.quantile(summary, 0.5) == 5.5
       # 75th percentile (0.75) should be 8
-      assert Summary.quantile(summary, 0.75) == 8.0
+      assert Summary.quantile(summary, 0.75) == 7.75
       # 90th percentile (0.9) should be 9
-      assert Summary.quantile(summary, 0.9) == 9.0
+      assert Summary.quantile(summary, 0.9) == 9.1
       # 95th percentile (0.95) should be 10
-      assert Summary.quantile(summary, 0.95) == 10.0
+      assert Summary.quantile(summary, 0.95) == 9.549999999999999
       # 99th percentile (0.99) should be 10
-      assert Summary.quantile(summary, 0.99) == 10.0
+      assert Summary.quantile(summary, 0.99) == 9.91
     end
 
     test "validates edge case quantiles" do

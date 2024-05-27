@@ -93,10 +93,9 @@ defmodule Oak.Metric.Summary do
   @doc """
   Calculates the specified quantile from observations.
 
-  Uses a simple quantile calculation method:
-  - Maps quantile q (0-1) directly to array index
-  - For quantile q, returns the value at index floor(q * n) where n is the number of observations
-  - Handles edge cases for 0.0 and 1.0 quantiles
+  Uses the standard percentile calculation method:
+  - Index = (n-1) × p where n is the number of observations and p is the percentile (0-1)
+  - Interpolates between values when the index is not an integer
   """
   def quantile(summary, q) when q >= 0 and q <= 1 do
     case summary.observations do
@@ -113,19 +112,32 @@ defmodule Oak.Metric.Summary do
         else
           cond do
             q == 0.0 ->
-              # 0th quantile returns the minimum value
+              # 0th percentile returns the minimum value
               List.first(sorted)
             q == 1.0 ->
-              # 100th quantile returns the maximum value
+              # 100th percentile returns the maximum value
               List.last(sorted)
             true ->
-              # Calculate index: floor(q * n)
-              # For q=0.5, n=4: index = floor(0.5 * 4) = floor(2) = 2
-              # For q=0.9, n=5: index = floor(0.9 * 5) = floor(4.5) = 4
-              index = trunc(q * n)
-              # Ensure index is within bounds
-              clamped_index = max(0, min(index, n - 1))
-              Enum.at(sorted, clamped_index)
+              # Calculate the position using standard percentile formula
+              # For quantile q, position = q * (n - 1)
+              position = q * (n - 1)
+
+              # Get the integer part and fractional part
+              lower_index = trunc(position)
+              upper_index = min(lower_index + 1, n - 1)
+
+              # Get the values at these indices
+              lower_value = Enum.at(sorted, lower_index)
+              upper_value = Enum.at(sorted, upper_index)
+
+              # If we're at an exact integer position, return that value
+              if position == lower_index do
+                lower_value
+              else
+                # Interpolate between the two values
+                weight = position - lower_index
+                lower_value * (1 - weight) + upper_value * weight
+              end
           end
         end
     end
