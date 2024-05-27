@@ -143,8 +143,6 @@ p90 = Oak.Metric.Summary.quantile(summary, 0.9)
 
 The `Oak.MetricsStore` provides a centralized GenServer-based storage for all metrics.
 
-### API
-
 ```elixir
 # Start the store
 {:ok, store} = Oak.MetricsStore.start_link()
@@ -166,8 +164,6 @@ Oak.MetricsStore.stop(store)
 ## Prometheus Integration
 
 The `Oak.Prometheus` module provides high-level functions for working with the metrics store and generating Prometheus-compatible output.
-
-### API
 
 ```elixir
 # Get all metrics from store
