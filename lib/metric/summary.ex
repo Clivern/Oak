@@ -114,9 +114,11 @@ defmodule Oak.Metric.Summary do
             q == 0.0 ->
               # 0th percentile returns the minimum value
               List.first(sorted)
+
             q == 1.0 ->
               # 100th percentile returns the maximum value
               List.last(sorted)
+
             true ->
               # Calculate the position using standard percentile formula
               # For quantile q, position = q * (n - 1)
@@ -144,11 +146,34 @@ defmodule Oak.Metric.Summary do
   end
 
   @doc """
+  Returns the id of the counter
+
+  ## Parameters
+
+  * `counter` - The counter to get the id from
+  """
+  def id(counter),
+    do:
+      "#{counter.name}|#{format_labels(counter.labels)}"
+      |> String.replace(" ", "")
+      |> String.downcase()
+
+  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
+
+  defp format_labels(labels) when is_map(labels) do
+    labels
+    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
+    |> Enum.join(",")
+  end
+
+  @doc """
   Returns a string representation of the summary in Prometheus exposition format.
   """
   def to_string(summary) do
     labels_str =
       summary.labels
+      |> Enum.sort_by(fn {key, _value} -> key end)
       |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
       |> Enum.join(",")
 

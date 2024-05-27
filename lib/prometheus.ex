@@ -12,56 +12,74 @@ defmodule Oak.Prometheus do
   - Export metrics in Prometheus exposition format
   """
 
-  use GenServer
-  require Logger
+  @doc """
+  Get all metrics from the MetricsStore
 
-  @default_port 9090
-  @default_host "0.0.0.0"
+  ## Parameters
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  * `pid` - The pid of the MetricsStore
+  """
+  def get_metrics(pid) do
+    GenServer.call(pid, {:get_all})
   end
 
-  def init(opts) do
-    port = Keyword.get(opts, :port, @default_port)
-    host = Keyword.get(opts, :host, @default_host)
+  @doc """
+  Push a metric to the MetricsStore
 
-    Logger.info("Starting Oak Prometheus server on #{host}:#{port}")
+  ## Parameters
 
-    # Start the HTTP server
-    server_pid = start_http_server(host, port)
-
-    {:ok, %{server_pid: server_pid, port: port, host: host}}
+  * `pid` - The pid of the MetricsStore
+  * `metric` - The metric to push
+  """
+  def push_metric(pid, metric) do
+    GenServer.call(pid, {:push, metric})
   end
 
-  defp start_http_server(host, port) do
-    # For now, we'll use a simple approach
-    # In production, you might want to use Plug or similar
-    Logger.info("Oak Prometheus server started on #{host}:#{port}")
-    Logger.info("Metrics available at http://#{host}:#{port}/metrics")
+  @doc """
+  Push a list of metrics to the MetricsStore
 
-    # Return a dummy PID for now - in a real implementation,
-    # you'd start an actual HTTP server here
-    spawn(fn ->
-      Logger.info("Oak Prometheus server ready")
-      # Keep the process alive
-      receive do
-        _ -> :ok
-      end
-    end)
+  ## Parameters
+
+  * `pid` - The pid of the MetricsStore
+  * `metrics` - The list of metrics to push
+  """
+  def push_metrics(pid, metrics) do
+    Enum.each(metrics, fn metric -> push_metric(pid, metric) end)
   end
 
   @doc """
   Collects all metrics and formats them for Prometheus exposition.
+
+  ## Parameters
+
+  * `pid` - The pid of the MetricsStore
   """
-  def collect_metrics do
-    # This would collect from a registry in a real implementation
-    # For now, return a sample metric
-    """
-    # HELP oak_up Oak server status
-    # TYPE oak_up gauge
-    oak_up 1
-    """
+  def collect_runtime_metrics(pid) do
+    # Collect runtime metrics
+    runtime_metrics = Oak.Collector.Runtime.collect()
+
+    # Add server status metric
+    status_metric = %Oak.Metric.Gauge{
+      name: "oak_up",
+      help: "Oak prometheus server status",
+      labels: %{},
+      value: 1
+    }
+
+    push_metrics(pid, [status_metric | runtime_metrics])
+  end
+
+  @doc """
+  Outputs the metrics in Prometheus exposition format.
+
+  ## Parameters
+
+  * `pid` - The pid of the MetricsStore
+  """
+  def output_metrics(pid) do
+    get_metrics(pid)
+    |> Map.values()
+    |> format_metrics
   end
 
   @doc """
@@ -85,16 +103,5 @@ defmodule Oak.Prometheus do
       %Oak.Metric.Summary{} -> Oak.Metric.Summary.to_string(metric)
       _ -> ""
     end
-  end
-
-  @doc """
-  Stops the Prometheus server.
-
-  ## Parameters
-
-  * `prometheus` - The Prometheus server to stop
-  """
-  def stop do
-    GenServer.stop(__MODULE__)
   end
 end

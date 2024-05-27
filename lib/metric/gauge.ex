@@ -79,6 +79,28 @@ defmodule Oak.Metric.Gauge do
   def value(gauge), do: gauge.value
 
   @doc """
+  Returns the id of the counter
+
+  ## Parameters
+
+  * `counter` - The counter to get the id from
+  """
+  def id(counter),
+    do:
+      "#{counter.name}|#{format_labels(counter.labels)}"
+      |> String.replace(" ", "")
+      |> String.downcase()
+
+  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
+
+  defp format_labels(labels) when is_map(labels) do
+    labels
+    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
+    |> Enum.join(",")
+  end
+
+  @doc """
   Returns a string representation of the gauge in Prometheus exposition format.
 
   ## Parameters
@@ -88,6 +110,7 @@ defmodule Oak.Metric.Gauge do
   def to_string(gauge) do
     labels_str =
       gauge.labels
+      |> Enum.sort_by(fn {key, _value} -> key end)
       |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
       |> Enum.join(",")
 
