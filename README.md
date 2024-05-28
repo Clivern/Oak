@@ -199,10 +199,6 @@ http_requests_total{method="GET"} 42
 memory_usage{instance="web"} 1024
 ```
 
-## Contributing
-
-We are an open source, community-driven project so please feel free to join us. See the [contributing guidelines](CONTRIBUTING.md) for more details.
-
 ### Development Setup
 
 ```bash
@@ -219,6 +215,10 @@ mix ci
 # Run linting
 mix fmt
 ```
+
+## Contributing
+
+We are an open source, community-driven project so please feel free to join us. See the [contributing guidelines](CONTRIBUTING.md) for more details.
 
 ## Versioning
 
