@@ -57,7 +57,7 @@ analyze:
 .PHONY: docs
 docs:
 	@echo ">> ============= Build docs ============= <<"
-	$(mix) docs
+	MIX_ENV=dev mix docs
 
 
 ## publish: Publish oak

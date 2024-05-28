@@ -36,8 +36,7 @@ defmodule Oak.MixProject do
       docs: [
         source_ref: "v#{@version}",
         source_url: @url_github,
-        main: "Oak",
-        extras: ["README.md"]
+        extras: ["README.md", "CONTRIBUTING.md"]
       ],
       preferred_cli_env: [
         docs: :docs
