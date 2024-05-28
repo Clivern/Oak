@@ -18,7 +18,8 @@ defmodule Oak.MixProject do
         files: [
           "lib",
           "mix.exs",
-          "LICENSE"
+          "LICENSE",
+          "CONTRIBUTING.md"
         ],
         licenses: ["MIT"],
         links: %{
