@@ -34,7 +34,7 @@ GenServer.call(store, {:push, gauge})
 all_metrics = GenServer.call(store, {:get_all})
 
 # Get specific metric
-metric = GenServer.call(store, {:get, counter.id(counter)})
+metric = GenServer.call(store, {:get, Oak.Metric.Counter.id(counter)})
 ```
 
 ### Using the Prometheus Module
