@@ -5,7 +5,7 @@
 defmodule Oak.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
   @url_docs "http://hexdocs.pm/oak"
   @url_github "https://github.com/clivern/oak"
 

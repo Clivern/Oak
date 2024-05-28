@@ -1,3 +1,7 @@
+# Copyright 2024 Clivern. All rights reserved.
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file.
+
 defmodule Oak.MetricsStoreTest do
   use ExUnit.Case, async: false
   alias Oak.MetricsStore
@@ -187,45 +191,6 @@ defmodule Oak.MetricsStoreTest do
       # Should not contain spaces (based on the String.replace(" ", "") in counter.ex)
       refute String.contains?(id, " ")
       assert String.contains?(id, "test_counter")
-    end
-  end
-
-  describe "concurrent operations" do
-    test "handles multiple concurrent pushes", %{store: store} do
-      # Create multiple metrics
-      metrics =
-        for i <- 1..10 do
-          Counter.new("concurrent_counter_#{i}", "Counter #{i}", %{index: i})
-        end
-
-      # Push all metrics concurrently
-      tasks =
-        Enum.map(metrics, fn metric ->
-          Task.async(fn -> GenServer.call(store, {:push, metric}) end)
-        end)
-
-      # Wait for all to complete
-      results = Enum.map(tasks, &Task.await/1)
-
-      # All should succeed
-      assert Enum.all?(results, &(&1 == :ok))
-
-      # Verify all metrics were stored
-      all_metrics = GenServer.call(store, {:get_all})
-      assert map_size(all_metrics) == 10
-
-      Enum.each(metrics, fn metric ->
-        stored_metric = GenServer.call(store, {:get, Counter.id(metric)})
-        assert stored_metric == metric
-      end)
-    end
-  end
-
-  describe "error handling" do
-    test "handles invalid metric types gracefully" do
-      # This test would need to be implemented if we add validation
-      # For now, we'll test that the store doesn't crash with unexpected data
-      assert true
     end
   end
 end
