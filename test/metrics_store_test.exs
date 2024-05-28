@@ -8,8 +8,10 @@ defmodule Oak.MetricsStoreTest do
   alias Oak.Metric.{Counter, Gauge, Histogram, Summary}
 
   setup do
-    # Start a fresh MetricsStore for each test
-    {:ok, pid} = MetricsStore.start_link()
+    # Start a fresh MetricsStore for each test with a unique name
+    test_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
+    name = String.to_atom("test_store_#{test_id}")
+    {:ok, pid} = GenServer.start_link(MetricsStore, %{}, name: name)
     %{store: pid}
   end
 
