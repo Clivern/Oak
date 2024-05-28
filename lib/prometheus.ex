@@ -36,6 +36,62 @@ defmodule Oak.Prometheus do
   end
 
   @doc """
+  Get a metric from the MetricsStore
+
+  ## Parameters
+
+  * `pid` - The pid of the MetricsStore
+  * `metric_id` - The id of the metric to get
+  """
+  def get_metric(pid, metric_id) do
+    GenServer.call(pid, {:get, metric_id})
+  end
+
+  @doc """
+  Get the id of a counter
+
+  ## Parameters
+
+  * `counter` - The counter to get the id from
+  """
+  def get_counter_id(counter) do
+    Oak.Metric.Counter.id(counter)
+  end
+
+  @doc """
+  Get the id of a gauge
+
+  ## Parameters
+
+  * `gauge` - The gauge to get the id from
+  """
+  def get_gauge_id(gauge) do
+    Oak.Metric.Gauge.id(gauge)
+  end
+
+  @doc """
+  Get the id of a histogram
+
+  ## Parameters
+
+  * `histogram` - The histogram to get the id from
+  """
+  def get_histogram_id(histogram) do
+    Oak.Metric.Histogram.id(histogram)
+  end
+
+  @doc """
+  Get the id of a summary
+
+  ## Parameters
+
+  * `summary` - The summary to get the id from
+  """
+  def get_summary_id(summary) do
+    Oak.Metric.Summary.id(summary)
+  end
+
+  @doc """
   Push a list of metrics to the MetricsStore
 
   ## Parameters
