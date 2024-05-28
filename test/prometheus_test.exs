@@ -214,7 +214,7 @@ defmodule Oak.PrometheusTest do
   end
 
   describe "ID getter functions" do
-        test "get_counter_id/1 returns correct counter ID" do
+    test "get_counter_id/1 returns correct counter ID" do
       counter = Counter.new("test_counter", "Test counter", %{method: "GET"})
       expected_id = Counter.id(counter)
 
@@ -237,7 +237,9 @@ defmodule Oak.PrometheusTest do
     end
 
     test "get_histogram_id/1 returns correct histogram ID" do
-      histogram = Histogram.new("test_histogram", "Test histogram", [0.1, 0.5, 1.0], %{endpoint: "/api"})
+      histogram =
+        Histogram.new("test_histogram", "Test histogram", [0.1, 0.5, 1.0], %{endpoint: "/api"})
+
       expected_id = Histogram.id(histogram)
 
       actual_id = Prometheus.get_histogram_id(histogram)
@@ -267,17 +269,20 @@ defmodule Oak.PrometheusTest do
       assert Prometheus.get_gauge_id(gauge_empty) == Gauge.id(gauge_empty)
 
       # Test with complex labels
-      counter_complex = Counter.new("complex_labels", "Complex labels", %{
-        method: "POST",
-        status: "201",
-        endpoint: "/users",
-        version: "v1"
-      })
-      histogram_complex = Histogram.new("complex_labels", "Complex labels", [0.1, 0.5], %{
-        service: "api",
-        environment: "production",
-        region: "us-west-1"
-      })
+      counter_complex =
+        Counter.new("complex_labels", "Complex labels", %{
+          method: "POST",
+          status: "201",
+          endpoint: "/users",
+          version: "v1"
+        })
+
+      histogram_complex =
+        Histogram.new("complex_labels", "Complex labels", [0.1, 0.5], %{
+          service: "api",
+          environment: "production",
+          region: "us-west-1"
+        })
 
       assert Prometheus.get_counter_id(counter_complex) == Counter.id(counter_complex)
       assert Prometheus.get_histogram_id(histogram_complex) == Histogram.id(histogram_complex)
