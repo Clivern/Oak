@@ -207,13 +207,13 @@ git clone https://github.com/clivern/oak.git
 cd oak
 
 # Install dependencies
-mix deps
+make deps
 
 # Run tests
-mix ci
+make ci
 
-# Run linting
-mix fmt
+# Run formatting
+make fmt
 ```
 
 ## Contributing

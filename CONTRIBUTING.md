@@ -40,23 +40,24 @@ git clone https://github.com/clivern/oak.git
 cd oak
 
 # Install dependencies
-mix deps.get
+make deps
 
 # Run tests
-mix test
+make ci
 
 # Run linting
-mix format
+make fmt
 
 # Generate documentation
-mix docs
+rm -rf docs
+make docs
 ```
 
 ## Testing
 
 - Write tests for new functionality
 - Ensure all existing tests pass
-- Run the test suite with `mix test`
+- Run the test suite with `make ci`
 
 ## Code Style
 
