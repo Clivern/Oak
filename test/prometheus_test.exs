@@ -213,6 +213,104 @@ defmodule Oak.PrometheusTest do
     end
   end
 
+  describe "ID getter functions" do
+        test "get_counter_id/1 returns correct counter ID" do
+      counter = Counter.new("test_counter", "Test counter", %{method: "GET"})
+      expected_id = Counter.id(counter)
+
+      actual_id = Prometheus.get_counter_id(counter)
+
+      assert actual_id == expected_id
+      assert is_binary(actual_id)
+      assert String.length(actual_id) > 0
+    end
+
+    test "get_gauge_id/1 returns correct gauge ID" do
+      gauge = Gauge.new("test_gauge", "Test gauge", %{instance: "web"})
+      expected_id = Gauge.id(gauge)
+
+      actual_id = Prometheus.get_gauge_id(gauge)
+
+      assert actual_id == expected_id
+      assert is_binary(actual_id)
+      assert String.length(actual_id) > 0
+    end
+
+    test "get_histogram_id/1 returns correct histogram ID" do
+      histogram = Histogram.new("test_histogram", "Test histogram", [0.1, 0.5, 1.0], %{endpoint: "/api"})
+      expected_id = Histogram.id(histogram)
+
+      actual_id = Prometheus.get_histogram_id(histogram)
+
+      assert actual_id == expected_id
+      assert is_binary(actual_id)
+      assert String.length(actual_id) > 0
+    end
+
+    test "get_summary_id/1 returns correct summary ID" do
+      summary = Summary.new("test_summary", "Test summary", [0.5, 0.9, 0.95], %{service: "auth"})
+      expected_id = Summary.id(summary)
+
+      actual_id = Prometheus.get_summary_id(summary)
+
+      assert actual_id == expected_id
+      assert is_binary(actual_id)
+      assert String.length(actual_id) > 0
+    end
+
+    test "ID getter functions work with different label combinations" do
+      # Test with empty labels
+      counter_empty = Counter.new("empty_labels", "Empty labels", %{})
+      gauge_empty = Gauge.new("empty_labels", "Empty labels", %{})
+
+      assert Prometheus.get_counter_id(counter_empty) == Counter.id(counter_empty)
+      assert Prometheus.get_gauge_id(gauge_empty) == Gauge.id(gauge_empty)
+
+      # Test with complex labels
+      counter_complex = Counter.new("complex_labels", "Complex labels", %{
+        method: "POST",
+        status: "201",
+        endpoint: "/users",
+        version: "v1"
+      })
+      histogram_complex = Histogram.new("complex_labels", "Complex labels", [0.1, 0.5], %{
+        service: "api",
+        environment: "production",
+        region: "us-west-1"
+      })
+
+      assert Prometheus.get_counter_id(counter_complex) == Counter.id(counter_complex)
+      assert Prometheus.get_histogram_id(histogram_complex) == Histogram.id(histogram_complex)
+    end
+
+    test "ID getter functions return consistent IDs for same metric" do
+      counter = Counter.new("consistent_counter", "Consistent counter", %{method: "GET"})
+
+      # Call multiple times to ensure consistency
+      id1 = Prometheus.get_counter_id(counter)
+      id2 = Prometheus.get_counter_id(counter)
+      id3 = Prometheus.get_counter_id(counter)
+
+      assert id1 == id2
+      assert id2 == id3
+      assert id1 == id3
+    end
+
+    test "ID getter functions work with modified metrics" do
+      # Create a counter and modify it
+      counter = Counter.new("modified_counter", "Modified counter", %{method: "GET"})
+      original_id = Prometheus.get_counter_id(counter)
+
+      # Modify the counter (increment it)
+      modified_counter = Counter.inc(counter, 5)
+      modified_id = Prometheus.get_counter_id(modified_counter)
+
+      # ID should remain the same even after modification
+      assert modified_id == original_id
+      assert modified_id == Counter.id(modified_counter)
+    end
+  end
+
   # Helper function to get metric ID based on type
   defp get_metric_id(%Counter{} = metric), do: Counter.id(metric)
   defp get_metric_id(%Gauge{} = metric), do: Gauge.id(metric)
