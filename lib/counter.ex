@@ -54,6 +54,10 @@ defmodule Oak.Metric.Counter do
 
     labels_formatted = if labels_str == "", do: "", else: "{#{labels_str}}"
 
-    "#{counter.name}#{labels_formatted} #{counter.value}"
+    """
+    # HELP #{counter.name} #{counter.help}
+    # TYPE #{counter.name} counter
+    #{counter.name}#{labels_formatted} #{counter.value}
+    """
   end
 end
