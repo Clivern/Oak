@@ -67,6 +67,17 @@ defmodule Oak.Metric.CounterTest do
     end
   end
 
+  describe "set/1" do
+    test "set the counter to 20" do
+      counter =
+        Counter.new("test_counter", "Test counter")
+        |> Counter.inc(10)
+        |> Counter.set(20)
+
+      assert Counter.value(counter) == 20
+    end
+  end
+
   describe "reset/1" do
     test "resets the counter to zero" do
       counter =
