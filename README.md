@@ -45,6 +45,13 @@ metric = GenServer.call(store, {:get, Oak.Metric.Counter.id(counter)})
 
 # Push metrics using the Prometheus module
 counter = Oak.Metric.Counter.new("http_requests", "HTTP requests", %{method: "GET"})
+
+Oak.Prometheus.push_metric(store, counter)
+
+# Get Counter ID and get it from Prometheus
+counter_id = Oak.Prometheus.get_counter_id(counter)
+counter = Oak.Prometheus.get_metric(store, counter_id) |> Oak.Metric.Counter.inc(1)
+
 Oak.Prometheus.push_metric(store, counter)
 
 # Collect runtime metrics
