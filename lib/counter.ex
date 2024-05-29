@@ -32,6 +32,13 @@ defmodule Oak.Metric.Counter do
   end
 
   @doc """
+  Set the counter value
+  """
+  def set(counter, value \\ 1) when is_integer(value) and value >= 0 do
+    %{counter | value: value}
+  end
+
+  @doc """
   Returns the current value of the counter.
   """
   def value(counter), do: counter.value

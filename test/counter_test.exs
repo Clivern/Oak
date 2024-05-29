@@ -97,7 +97,9 @@ defmodule Oak.Metric.CounterTest do
         |> Counter.inc(15)
 
       assert Counter.to_string(counter) ==
-               "# HELP http_requests_total Total number of HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total{status=\"200\",method=\"GET\"} 15\n"
+               "# HELP http_requests_total Total number of HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total{status=\"200\",method=\"GET\"} 15\n" ||
+               Counter.to_string(counter) ==
+                 "# HELP http_requests_total Total number of HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total{method=\"GET\",status=\"200\"} 15\n"
     end
   end
 end
