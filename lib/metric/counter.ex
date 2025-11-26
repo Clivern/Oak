@@ -10,6 +10,8 @@ defmodule Oak.Metric.Counter do
   increasing counter whose value can only increase or be reset to zero.
   """
 
+  alias Oak.Metric.Labels
+
   defstruct [:name, :help, :labels, :value]
 
   @doc """
@@ -85,20 +87,7 @@ defmodule Oak.Metric.Counter do
 
   * `counter` - The counter to get the id from
   """
-  def id(counter),
-    do:
-      "#{counter.name}|#{format_labels(counter.labels)}"
-      |> String.replace(" ", "")
-      |> String.downcase()
-
-  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
-
-  defp format_labels(labels) when is_map(labels) do
-    labels
-    |> Enum.sort_by(fn {key, _value} -> key end)
-    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
-    |> Enum.join(",")
-  end
+  def id(counter), do: Labels.id(counter.name, counter.labels)
 
   @doc """
   Returns a string representation of the counter in Prometheus exposition format
@@ -108,18 +97,12 @@ defmodule Oak.Metric.Counter do
   * `counter` - The counter to convert to a string
   """
   def to_string(counter) do
-    labels_str =
-      counter.labels
-      |> Enum.sort_by(fn {key, _value} -> key end)
-      |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
-      |> Enum.join(",")
-
-    labels_formatted = if labels_str == "", do: "", else: "{#{labels_str}}"
+    labels = counter.labels |> Labels.render() |> Labels.braced()
 
     """
     # HELP #{counter.name} #{counter.help}
     # TYPE #{counter.name} counter
-    #{counter.name}#{labels_formatted} #{counter.value}
+    #{counter.name}#{labels} #{counter.value}
     """
   end
 end

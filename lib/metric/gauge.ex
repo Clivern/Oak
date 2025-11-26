@@ -9,6 +9,8 @@ defmodule Oak.Metric.Gauge do
   A Gauge is a metric that represents a single numerical value that can arbitrarily go up and down.
   """
 
+  alias Oak.Metric.Labels
+
   defstruct [:name, :help, :labels, :value]
 
   @doc """
@@ -79,26 +81,13 @@ defmodule Oak.Metric.Gauge do
   def value(gauge), do: gauge.value
 
   @doc """
-  Returns the id of the counter
+  Returns the id of the gauge
 
   ## Parameters
 
-  * `counter` - The counter to get the id from
+  * `gauge` - The gauge to get the id from
   """
-  def id(counter),
-    do:
-      "#{counter.name}|#{format_labels(counter.labels)}"
-      |> String.replace(" ", "")
-      |> String.downcase()
-
-  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
-
-  defp format_labels(labels) when is_map(labels) do
-    labels
-    |> Enum.sort_by(fn {key, _value} -> key end)
-    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
-    |> Enum.join(",")
-  end
+  def id(gauge), do: Labels.id(gauge.name, gauge.labels)
 
   @doc """
   Returns a string representation of the gauge in Prometheus exposition format.
@@ -108,18 +97,12 @@ defmodule Oak.Metric.Gauge do
   * `gauge` - The gauge to convert to a string
   """
   def to_string(gauge) do
-    labels_str =
-      gauge.labels
-      |> Enum.sort_by(fn {key, _value} -> key end)
-      |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
-      |> Enum.join(",")
-
-    labels_formatted = if labels_str == "", do: "", else: "{#{labels_str}}"
+    labels = gauge.labels |> Labels.render() |> Labels.braced()
 
     """
     # HELP #{gauge.name} #{gauge.help}
     # TYPE #{gauge.name} gauge
-    #{gauge.name}#{labels_formatted} #{gauge.value}
+    #{gauge.name}#{labels} #{gauge.value}
     """
   end
 end

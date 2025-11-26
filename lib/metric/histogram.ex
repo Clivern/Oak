@@ -9,6 +9,8 @@ defmodule Oak.Metric.Histogram do
   A Histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.
   """
 
+  alias Oak.Metric.Labels
+
   defstruct [:name, :help, :labels, :buckets, :sum, :count, :bucket_counts]
 
   @doc """
@@ -95,26 +97,13 @@ defmodule Oak.Metric.Histogram do
   def bucket_counts(histogram), do: histogram.bucket_counts
 
   @doc """
-  Returns the id of the counter
+  Returns the id of the histogram
 
   ## Parameters
 
-  * `counter` - The counter to get the id from
+  * `histogram` - The histogram to get the id from
   """
-  def id(counter),
-    do:
-      "#{counter.name}|#{format_labels(counter.labels)}"
-      |> String.replace(" ", "")
-      |> String.downcase()
-
-  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
-
-  defp format_labels(labels) when is_map(labels) do
-    labels
-    |> Enum.sort_by(fn {key, _value} -> key end)
-    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
-    |> Enum.join(",")
-  end
+  def id(histogram), do: Labels.id(histogram.name, histogram.labels)
 
   @doc """
   Returns a string representation of the histogram in Prometheus exposition format.
@@ -124,20 +113,14 @@ defmodule Oak.Metric.Histogram do
   * `histogram` - The histogram to convert to a string
   """
   def to_string(histogram) do
-    labels_str =
-      histogram.labels
-      |> Enum.sort_by(fn {key, _value} -> key end)
-      |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
-      |> Enum.join(",")
-
-    labels_formatted = if labels_str == "", do: "", else: "{#{labels_str}}"
+    rendered = Labels.render(histogram.labels)
+    labels = Labels.braced(rendered)
 
     bucket_strings =
       histogram.bucket_counts
       |> Enum.map(fn {bucket, count} ->
-        if labels_str == "",
-          do: "#{histogram.name}_bucket{le=\"#{bucket}\"} #{count}",
-          else: "#{histogram.name}_bucket{#{labels_str},le=\"#{bucket}\"} #{count}"
+        bucket_labels = Labels.braced(Labels.append(rendered, ~s(le="#{bucket}")))
+        "#{histogram.name}_bucket#{bucket_labels} #{count}"
       end)
       |> Enum.join("\n")
 
@@ -145,8 +128,8 @@ defmodule Oak.Metric.Histogram do
     # HELP #{histogram.name} #{histogram.help}
     # TYPE #{histogram.name} histogram
     #{bucket_strings}
-    #{histogram.name}_sum#{labels_formatted} #{histogram.sum}
-    #{histogram.name}_count#{labels_formatted} #{histogram.count}
+    #{histogram.name}_sum#{labels} #{histogram.sum}
+    #{histogram.name}_count#{labels} #{histogram.count}
     """
   end
 end

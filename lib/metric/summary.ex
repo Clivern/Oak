@@ -10,6 +10,8 @@ defmodule Oak.Metric.Summary do
   a total count of observations and sum of all observed values, while calculating configurable quantiles over a sliding time window.
   """
 
+  alias Oak.Metric.Labels
+
   defstruct [:name, :help, :labels, :quantiles, :sum, :count, :observations]
 
   @doc """
@@ -102,91 +104,45 @@ defmodule Oak.Metric.Summary do
       [] ->
         0
 
-      obs ->
-        sorted = Enum.sort(obs)
-        n = length(sorted)
+      observations ->
+        # A tuple gives constant-time indexed access to the sorted values.
+        sorted = observations |> Enum.sort() |> List.to_tuple()
+        n = tuple_size(sorted)
 
-        if n == 1 do
-          # Single observation
-          List.first(sorted)
-        else
-          cond do
-            q == 0.0 ->
-              # 0th percentile returns the minimum value
-              List.first(sorted)
-
-            q == 1.0 ->
-              # 100th percentile returns the maximum value
-              List.last(sorted)
-
-            true ->
-              # Calculate the position using standard percentile formula
-              # For quantile q, position = q * (n - 1)
-              position = q * (n - 1)
-
-              # Get the integer part and fractional part
-              lower_index = trunc(position)
-              upper_index = min(lower_index + 1, n - 1)
-
-              # Get the values at these indices
-              lower_value = Enum.at(sorted, lower_index)
-              upper_value = Enum.at(sorted, upper_index)
-
-              # If we're at an exact integer position, return that value
-              if position == lower_index do
-                lower_value
-              else
-                # Interpolate between the two values
-                weight = position - lower_index
-                lower_value * (1 - weight) + upper_value * weight
-              end
-          end
+        cond do
+          # A single observation is every quantile.
+          n == 1 -> elem(sorted, 0)
+          # 0th percentile is the minimum value.
+          q == 0.0 -> elem(sorted, 0)
+          # 100th percentile is the maximum value.
+          q == 1.0 -> elem(sorted, n - 1)
+          true -> interpolate(sorted, n, q)
         end
     end
   end
 
   @doc """
-  Returns the id of the counter
+  Returns the id of the summary
 
   ## Parameters
 
-  * `counter` - The counter to get the id from
+  * `summary` - The summary to get the id from
   """
-  def id(counter),
-    do:
-      "#{counter.name}|#{format_labels(counter.labels)}"
-      |> String.replace(" ", "")
-      |> String.downcase()
-
-  defp format_labels(labels) when is_map(labels) and map_size(labels) == 0, do: ""
-
-  defp format_labels(labels) when is_map(labels) do
-    labels
-    |> Enum.sort_by(fn {key, _value} -> key end)
-    |> Enum.map(fn {key, value} -> "#{key}_#{value}" end)
-    |> Enum.join(",")
-  end
+  def id(summary), do: Labels.id(summary.name, summary.labels)
 
   @doc """
   Returns a string representation of the summary in Prometheus exposition format.
   """
   def to_string(summary) do
-    labels_str =
-      summary.labels
-      |> Enum.sort_by(fn {key, _value} -> key end)
-      |> Enum.map(fn {key, value} -> "#{key}=\"#{value}\"" end)
-      |> Enum.join(",")
-
-    labels_formatted = if labels_str == "", do: "", else: "{#{labels_str}}"
+    rendered = Labels.render(summary.labels)
+    labels = Labels.braced(rendered)
 
     quantile_strings =
       summary.quantiles
       |> Enum.map(fn q ->
         value = quantile(summary, q)
-
-        if labels_str == "",
-          do: "#{summary.name}{quantile=\"#{q}\"} #{value}",
-          else: "#{summary.name}{#{labels_str},quantile=\"#{q}\"} #{value}"
+        quantile_labels = Labels.braced(Labels.append(rendered, ~s(quantile="#{q}")))
+        "#{summary.name}#{quantile_labels} #{value}"
       end)
       |> Enum.join("\n")
 
@@ -194,8 +150,26 @@ defmodule Oak.Metric.Summary do
     # HELP #{summary.name} #{summary.help}
     # TYPE #{summary.name} summary
     #{quantile_strings}
-    #{summary.name}_sum#{labels_formatted} #{summary.sum}
-    #{summary.name}_count#{labels_formatted} #{summary.count}
+    #{summary.name}_sum#{labels} #{summary.sum}
+    #{summary.name}_count#{labels} #{summary.count}
     """
+  end
+
+  # Interpolates the quantile `q` between the two sorted values that bracket
+  # position q * (n - 1). Exact integer positions return the value directly.
+  defp interpolate(sorted, n, q) do
+    position = q * (n - 1)
+    lower_index = trunc(position)
+    upper_index = min(lower_index + 1, n - 1)
+
+    lower_value = elem(sorted, lower_index)
+    upper_value = elem(sorted, upper_index)
+
+    if position == lower_index do
+      lower_value
+    else
+      weight = position - lower_index
+      lower_value * (1 - weight) + upper_value * weight
+    end
   end
 end
