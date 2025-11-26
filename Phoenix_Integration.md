@@ -1,62 +1,37 @@
-# Integrating Oak with Phoenix Applications
-
-This guide explains how to integrate [Oak](https://github.com/Clivern/Oak) with your Phoenix application. Oak is a high-performance metrics collection and aggregation library written in Elixir.
+# Integrating Oak with Phoenix
 
 ## Installation
 
-### 1. Add Oak Dependencies
-
-Add the following to your `mix.exs`:
+Add Oak to `mix.exs`:
 
 ```elixir
 def deps do
   [
-    # ... other deps
     {:oak, "~> 0.2"}
   ]
 end
 ```
 
-### 2. Install Dependencies
-
 ```bash
 mix deps.get
 ```
 
-## Basic Configuration
+## Start the Metrics Store
 
-### 1. Start Oak in Your Application
-
-Update your `lib/your_app/application.ex`:
+In `lib/your_app/application.ex`:
 
 ```elixir
-defmodule YourApp.Application do
-  use Application
-
-  def start(_type, _args) do
-    children = [
-      # ... other children
-      {Oak.MetricsStore, %{}}
-    ]
-
-    opts = [strategy: :one_for_one, name: YourApp.Supervisor]
-    Supervisor.start_link(children, opts)
-  end
-end
+children = [
+  {Oak.MetricsStore, %{}}
+]
 ```
 
-## Metrics Collection
+## Collect Request Metrics
 
-### 1. Create a Metrics Plug
-
-Create a plug to collect HTTP request metrics. This should be placed **after** your router to capture actual response statuses:
+Create `lib/your_app_web/plugs/route_metrics.ex`:
 
 ```elixir
-# lib/your_app_web/plugs/route_metrics.ex
 defmodule YourAppWeb.Plugs.RouteMetrics do
-  @moduledoc """
-  Plug that tracks route metrics and pushes them to Oak metrics store.
-  """
   import Plug.Conn
   require Logger
 
@@ -64,36 +39,24 @@ defmodule YourAppWeb.Plugs.RouteMetrics do
 
   def call(conn, _opts) do
     start_time = System.monotonic_time(:millisecond)
-
-    conn
-    |> register_before_send(&track_metrics(&1, start_time))
+    register_before_send(conn, &track_metrics(&1, start_time))
   end
 
   defp track_metrics(conn, start_time) do
-    end_time = System.monotonic_time(:millisecond)
-    duration = end_time - start_time
+    duration = System.monotonic_time(:millisecond) - start_time
 
-    # Get route information
-    route = conn.request_path
-    method = conn.method
-    status = conn.status || 500
-
-    # HTTP request counter
-    http_requests_total = Oak.Metric.Counter.new("http_requests_total", "HTTP requests total", %{
-      method: method,
-      route: route,
-      status: status
+    counter = Oak.Metric.Counter.new("http_requests_total", "HTTP requests total", %{
+      method: conn.method,
+      route: conn.request_path,
+      status: conn.status || 500
     })
 
-    # Request duration histogram
-    request_duration = Oak.Metric.Histogram.new("request_duration", "Request duration", [10, 50, 100, 250, 500, 1000, 2500, 5000], %{
-      method: method,
-      route: route
-    })
+    histogram = Oak.Metric.Histogram.new("request_duration", "Request duration",
+      [10, 50, 100, 250, 500, 1000, 2500, 5000],
+      %{method: conn.method, route: conn.request_path})
 
-    # The store creates each metric on first use and updates it atomically after that
-    record(Oak.MetricsStore.inc(Oak.MetricsStore, http_requests_total))
-    record(Oak.MetricsStore.observe(Oak.MetricsStore, request_duration, duration))
+    record(Oak.MetricsStore.inc(Oak.MetricsStore, counter))
+    record(Oak.MetricsStore.observe(Oak.MetricsStore, histogram, duration))
 
     conn
   end
@@ -106,87 +69,47 @@ defmodule YourAppWeb.Plugs.RouteMetrics do
 end
 ```
 
-### 2. Add the Plug to Your Endpoint
-
-**Important**: Place the metrics plug **before** your router to ensure it captures actual response statuses
+Add it to `lib/your_app_web/endpoint.ex`, **before** the router so it sees the final status:
 
 ```elixir
-# lib/your_app_web/endpoint.ex
-defmodule YourAppWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :your_app
-
-  # ... other plugs
-
-  # Route metrics tracking
-  plug YourAppWeb.Plugs.RouteMetrics
-
-  plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
-    pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
-
-  plug Plug.MethodOverride
-  plug Plug.Head
-  plug Plug.Session, @session_options
-  plug YourAppWeb.Router
-end
+plug YourAppWeb.Plugs.RouteMetrics
+plug YourAppWeb.Router
 ```
 
-### 3. Create a Metrics Controller
+## Expose a Metrics Endpoint
 
-Create a controller to expose metrics for Prometheus scraping:
+Create `lib/your_app_web/controllers/metrics_controller.ex`:
 
 ```elixir
-# lib/your_app_web/controllers/metrics_controller.ex
 defmodule YourAppWeb.MetricsController do
   use YourAppWeb, :controller
 
   def metrics(conn, _params) do
     Oak.Prometheus.collect_runtime_metrics(Oak.MetricsStore)
-    metrics_text = Oak.Prometheus.output_metrics(Oak.MetricsStore)
 
     conn
     |> put_resp_content_type("text/plain")
-    |> send_resp(200, metrics_text)
+    |> send_resp(200, Oak.Prometheus.output_metrics(Oak.MetricsStore))
   end
 end
 ```
 
-### 4. Add Metrics Route
-
-Add the metrics endpoint to your router:
+Add the route in `lib/your_app_web/router.ex`:
 
 ```elixir
-# lib/your_app_web/router.ex
-defmodule YourAppWeb.Router do
-  use YourAppWeb, :router
-
-  # ... other routes
-
-  scope "/", YourAppWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
-    get "/_metrics", MetricsController, :metrics  # Metrics endpoint
-  end
-end
+get "/_metrics", MetricsController, :metrics
 ```
 
 ## Custom Metrics
 
-### 1. Business Logic Metrics
-
-You can add custom metrics throughout your application:
+Increment a counter from anywhere in your code:
 
 ```elixir
-# Example: Tracking user registrations
 def register_user(user_params) do
   case create_user(user_params) do
     {:ok, user} ->
-      # Increment user registration counter
       counter = Oak.Metric.Counter.new("user_registrations_total", "Total user registrations", %{})
       Oak.MetricsStore.inc(Oak.MetricsStore, counter)
-
       {:ok, user}
 
     {:error, changeset} ->
@@ -195,14 +118,10 @@ def register_user(user_params) do
 end
 ```
 
-## Testing Your Integration
-
-### 1. Start Your Application
+## Verify
 
 ```bash
 mix phx.server
 ```
 
-### 2. Check Metrics Endpoint
-
-Visit `http://localhost:4000/_metrics` to see your metrics in Prometheus format.
+Open http://localhost:4000/_metrics.
