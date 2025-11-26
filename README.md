@@ -22,19 +22,19 @@ end
 # Start the metrics store
 {:ok, store} = Oak.MetricsStore.start_link()
 
-# Create and push metrics
+# Create metrics
 counter = Oak.Metric.Counter.new("http_requests_total", "Total HTTP requests", %{method: "GET"})
 gauge = Oak.Metric.Gauge.new("memory_usage", "Memory usage in bytes", %{instance: "web"})
 
-# Push metrics to store
-GenServer.call(store, {:push, counter})
-GenServer.call(store, {:push, gauge})
+# Update them in the store (created on first use)
+Oak.MetricsStore.inc(store, counter)
+Oak.MetricsStore.set(store, gauge, 1024)
 
 # Get all metrics
-all_metrics = GenServer.call(store, {:get_all})
+all_metrics = Oak.Prometheus.get_metrics(store)
 
-# Get specific metric
-metric = GenServer.call(store, {:get, Oak.Metric.Counter.id(counter)})
+# Get a specific metric
+metric = Oak.Prometheus.get_metric(store, Oak.Metric.Counter.id(counter))
 ```
 
 ### Using the Prometheus Module
@@ -48,11 +48,8 @@ counter = Oak.Metric.Counter.new("http_requests", "HTTP requests", %{method: "GE
 
 Oak.Prometheus.push_metric(store, counter)
 
-# Get Counter ID and get it from Prometheus
-counter_id = Oak.Prometheus.get_counter_id(counter)
-counter = Oak.Prometheus.get_metric(store, counter_id) |> Oak.Metric.Counter.inc(1)
-
-Oak.Prometheus.push_metric(store, counter)
+# Atomically increment the stored counter (no get/push round-trip needed)
+Oak.MetricsStore.inc(store, counter, 1)
 
 # Collect runtime metrics
 Oak.Prometheus.collect_runtime_metrics(store)
@@ -155,18 +152,47 @@ The `Oak.MetricsStore` provides a centralized GenServer-based storage for all me
 {:ok, store} = Oak.MetricsStore.start_link()
 {:ok, store} = Oak.MetricsStore.start_link(%{initial: "metrics"})
 
-# Push a metric
-GenServer.call(store, {:push, metric})
+# Update a metric in place (created on first use)
+Oak.MetricsStore.inc(store, counter)
+
+# Register a fully built metric
+Oak.Prometheus.push_metric(store, metric)
 
 # Get a specific metric
-metric = GenServer.call(store, {:get, metric_id})
+metric = Oak.Prometheus.get_metric(store, metric_id)
 
 # Get all metrics
-all_metrics = GenServer.call(store, {:get_all})
+all_metrics = Oak.Prometheus.get_metrics(store)
 
-# Stop the store
-Oak.MetricsStore.stop(store)
+# Stop the store (registered under Oak.MetricsStore, so no argument)
+Oak.MetricsStore.stop()
 ```
+
+### Atomic Updates
+
+Use the update functions to change a stored metric in one step. The store applies
+the change itself, so concurrent callers never overwrite each other's updates.
+If the metric doesn't exist yet, the given metric is used as the starting point.
+
+```elixir
+counter = Oak.Metric.Counter.new("http_requests_total", "Total HTTP requests", %{method: "GET"})
+Oak.MetricsStore.inc(store, counter)        # increment by 1
+Oak.MetricsStore.inc(store, counter, 5)     # increment by 5
+
+gauge = Oak.Metric.Gauge.new("queue_depth", "Jobs waiting")
+Oak.MetricsStore.set(store, gauge, 12)      # set to a value
+Oak.MetricsStore.inc(store, gauge)          # increment
+Oak.MetricsStore.dec(store, gauge, 3)       # decrement
+
+histogram = Oak.Metric.Histogram.new("request_duration", "Request duration", [0.1, 0.5, 1.0])
+Oak.MetricsStore.observe(store, histogram, 0.3)   # works for summaries too
+
+# Apply any function to the stored metric
+Oak.MetricsStore.update(store, counter, &Oak.Metric.Counter.set(&1, 100))
+```
+
+If an update fails (for example, a negative counter increment), the function returns
+`{:error, exception}` and the stored metrics are left unchanged.
 
 ## Prometheus Integration
 
