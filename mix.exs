@@ -37,10 +37,13 @@ defmodule Oak.MixProject do
         source_ref: "v#{@version}",
         source_url: @url_github,
         extras: ["README.md", "CONTRIBUTING.md"]
-      ],
-      preferred_cli_env: [
-        docs: :docs
       ]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [docs: :docs]
     ]
   end
 
