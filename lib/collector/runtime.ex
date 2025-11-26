@@ -14,6 +14,10 @@ defmodule Oak.Collector.Runtime do
   - Load averages
   """
 
+  @memory_types [:total, :processes, :system, :atom, :binary, :ets]
+  @system_info_keys [:process_count, :port_count, :schedulers, :schedulers_online]
+  @load_periods [{"1m", 0}, {"5m", 1}, {"15m", 2}]
+
   @doc """
   Collects all runtime metrics and returns them as a list of metric structs.
   """
@@ -32,22 +36,9 @@ defmodule Oak.Collector.Runtime do
   Collects process-related metrics.
   """
   def collect_process_metrics do
-    process_count = Process.list() |> length()
-    port_count = :erlang.ports() |> length()
-
     [
-      %Oak.Metric.Gauge{
-        name: "erlang_processes_total",
-        help: "Total number of processes",
-        labels: %{},
-        value: process_count
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_ports_total",
-        help: "Total number of ports",
-        labels: %{},
-        value: port_count
-      }
+      gauge("erlang_processes_total", "Total number of processes", %{}, length(Process.list())),
+      gauge("erlang_ports_total", "Total number of ports", %{}, length(:erlang.ports()))
     ]
   end
 
@@ -57,44 +48,14 @@ defmodule Oak.Collector.Runtime do
   def collect_memory_metrics do
     memory = :erlang.memory()
 
-    [
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "total"},
-        value: memory[:total]
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "processes"},
-        value: memory[:processes]
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "system"},
-        value: memory[:system]
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "atom"},
-        value: memory[:atom]
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "binary"},
-        value: memory[:binary]
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_memory_bytes",
-        help: "Memory usage in bytes",
-        labels: %{type: "ets"},
-        value: memory[:ets]
-      }
-    ]
+    for type <- @memory_types do
+      gauge(
+        "erlang_memory_bytes",
+        "Memory usage in bytes",
+        %{type: Atom.to_string(type)},
+        memory[type]
+      )
+    end
   end
 
   @doc """
@@ -144,32 +105,14 @@ defmodule Oak.Collector.Runtime do
   Collects system information metrics.
   """
   def collect_system_metrics do
-    [
-      %Oak.Metric.Gauge{
-        name: "erlang_system_info",
-        help: "System information value",
-        labels: %{type: "process_count"},
-        value: :erlang.system_info(:process_count)
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_system_info",
-        help: "System information value",
-        labels: %{type: "port_count"},
-        value: :erlang.system_info(:port_count)
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_system_info",
-        help: "System information value",
-        labels: %{type: "schedulers"},
-        value: :erlang.system_info(:schedulers)
-      },
-      %Oak.Metric.Gauge{
-        name: "erlang_system_info",
-        help: "System information value",
-        labels: %{type: "schedulers_online"},
-        value: :erlang.system_info(:schedulers_online)
-      }
-    ]
+    for key <- @system_info_keys do
+      gauge(
+        "erlang_system_info",
+        "System information value",
+        %{type: Atom.to_string(key)},
+        :erlang.system_info(key)
+      )
+    end
   end
 
   @doc """
@@ -182,28 +125,16 @@ defmodule Oak.Collector.Runtime do
           # Get load average from /proc/loadavg on Linux
           case File.read("/proc/loadavg") do
             {:ok, content} ->
-              [load1, load5, load15 | _] = String.split(content, " ")
+              loads = String.split(content, " ")
 
-              [
-                %Oak.Metric.Gauge{
-                  name: "system_load_average",
-                  help: "System load average",
-                  labels: %{period: "1m"},
-                  value: String.to_float(load1)
-                },
-                %Oak.Metric.Gauge{
-                  name: "system_load_average",
-                  help: "System load average",
-                  labels: %{period: "5m"},
-                  value: String.to_float(load5)
-                },
-                %Oak.Metric.Gauge{
-                  name: "system_load_average",
-                  help: "System load average",
-                  labels: %{period: "15m"},
-                  value: String.to_float(load15)
-                }
-              ]
+              for {period, index} <- @load_periods do
+                gauge(
+                  "system_load_average",
+                  "System load average",
+                  %{period: period},
+                  String.to_float(Enum.at(loads, index))
+                )
+              end
 
             _ ->
               []
@@ -215,5 +146,9 @@ defmodule Oak.Collector.Runtime do
       _ ->
         []
     end
+  end
+
+  defp gauge(name, help, labels, value) do
+    %Oak.Metric.Gauge{name: name, help: help, labels: labels, value: value}
   end
 end
