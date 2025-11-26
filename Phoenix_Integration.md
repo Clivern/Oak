@@ -78,40 +78,30 @@ defmodule YourAppWeb.Plugs.RouteMetrics do
     method = conn.method
     status = conn.status || 500
 
-    # Push metrics to Oak
-    try do
-      # HTTP request counter
-      http_requests_total = Oak.Metric.Counter.new("http_requests_total", "HTTP requests total", %{
-        method: method,
-        route: route,
-        status: status
-      })
+    # HTTP request counter
+    http_requests_total = Oak.Metric.Counter.new("http_requests_total", "HTTP requests total", %{
+      method: method,
+      route: route,
+      status: status
+    })
 
-      case Oak.Prometheus.get_metric(Oak.MetricsStore, Oak.Prometheus.get_counter_id(http_requests_total)) do
-        nil ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, http_requests_total |> Oak.Metric.Counter.inc(1))
-        metric ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, metric |> Oak.Metric.Counter.inc(1))
-      end
+    # Request duration histogram
+    request_duration = Oak.Metric.Histogram.new("request_duration", "Request duration", [10, 50, 100, 250, 500, 1000, 2500, 5000], %{
+      method: method,
+      route: route
+    })
 
-      # Request duration histogram
-      request_duration = Oak.Metric.Histogram.new("request_duration", "Request duration", [10, 50, 100, 250, 500, 1000, 2500, 5000], %{
-        method: method,
-        route: route
-      })
-
-      case Oak.Prometheus.get_metric(Oak.MetricsStore, Oak.Prometheus.get_histogram_id(request_duration)) do
-        nil ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, request_duration |> Oak.Metric.Histogram.observe(duration))
-        metric ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, metric |> Oak.Metric.Histogram.observe(duration))
-      end
-    rescue
-      e ->
-        Logger.warning("Failed to push route metrics: #{inspect(e)}")
-    end
+    # The store creates each metric on first use and updates it atomically after that
+    record(Oak.MetricsStore.inc(Oak.MetricsStore, http_requests_total))
+    record(Oak.MetricsStore.observe(Oak.MetricsStore, request_duration, duration))
 
     conn
+  end
+
+  defp record(:ok), do: :ok
+
+  defp record({:error, reason}) do
+    Logger.warning("Failed to record route metric: #{inspect(reason)}")
   end
 end
 ```
@@ -195,13 +185,7 @@ def register_user(user_params) do
     {:ok, user} ->
       # Increment user registration counter
       counter = Oak.Metric.Counter.new("user_registrations_total", "Total user registrations", %{})
-
-      case Oak.Prometheus.get_metric(Oak.MetricsStore, Oak.Prometheus.get_counter_id(counter)) do
-        nil ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, counter |> Oak.Metric.Counter.inc(1))
-        metric ->
-          Oak.Prometheus.push_metric(Oak.MetricsStore, metric |> Oak.Metric.Counter.inc(1))
-      end
+      Oak.MetricsStore.inc(Oak.MetricsStore, counter)
 
       {:ok, user}
 
