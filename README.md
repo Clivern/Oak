@@ -4,8 +4,6 @@ Elixir Prometheus Exporter
 
 ## Installation
 
-The package can be installed by adding `oak` to your list of dependencies in `mix.exs`:
-
 ```elixir
 def deps do
   [
@@ -16,237 +14,91 @@ end
 
 ## Quick Start
 
-### Basic Usage
-
 ```elixir
-# Start the metrics store
 {:ok, store} = Oak.MetricsStore.start_link()
 
-# Create metrics
 counter = Oak.Metric.Counter.new("http_requests_total", "Total HTTP requests", %{method: "GET"})
 gauge = Oak.Metric.Gauge.new("memory_usage", "Memory usage in bytes", %{instance: "web"})
 
-# Update them in the store (created on first use)
 Oak.MetricsStore.inc(store, counter)
 Oak.MetricsStore.set(store, gauge, 1024)
 
-# Get all metrics
-all_metrics = Oak.Prometheus.get_metrics(store)
-
-# Get a specific metric
-metric = Oak.Prometheus.get_metric(store, Oak.Metric.Counter.id(counter))
-```
-
-### Using the Prometheus Module
-
-```elixir
-# Start metrics store
-{:ok, store} = Oak.MetricsStore.start_link()
-
-# Push metrics using the Prometheus module
-counter = Oak.Metric.Counter.new("http_requests", "HTTP requests", %{method: "GET"})
-
-Oak.Prometheus.push_metric(store, counter)
-
-# Atomically increment the stored counter (no get/push round-trip needed)
-Oak.MetricsStore.inc(store, counter, 1)
-
-# Collect runtime metrics
-Oak.Prometheus.collect_runtime_metrics(store)
-
-# Output in Prometheus format
-prometheus_output = Oak.Prometheus.output_metrics(store)
-
-IO.puts(prometheus_output)
+IO.puts(Oak.Prometheus.output_metrics(store))
 ```
 
 ## Metric Types
 
-### Counter
-
-Counters are monotonically increasing metrics, typically used for counting requests, errors, etc.
-
 ```elixir
-# Create a counter
+# Counter: only goes up
 counter = Oak.Metric.Counter.new("requests_total", "Total requests", %{endpoint: "/api"})
-
-# Increment the counter
 counter = Oak.Metric.Counter.inc(counter, 1)
 
-# Set a specific value
-counter = Oak.Metric.Counter.set(counter, 100)
-
-# Get current value
-value = Oak.Metric.Counter.value(counter)
-
-# Reset to zero
-counter = Oak.Metric.Counter.reset(counter)
-```
-
-### Gauge
-
-Gauges represent a single numerical value that can arbitrarily go up and down.
-
-```elixir
-# Create a gauge
+# Gauge: goes up and down
 gauge = Oak.Metric.Gauge.new("memory_usage", "Memory usage in bytes", %{instance: "web"})
-
-# Set the gauge value
 gauge = Oak.Metric.Gauge.set(gauge, 1024)
-
-# Increment the gauge
-gauge = Oak.Metric.Gauge.inc(gauge, 100)
-
-# Decrement the gauge
 gauge = Oak.Metric.Gauge.dec(gauge, 50)
 
-# Get current value
-value = Oak.Metric.Gauge.value(gauge)
-```
-
-### Histogram
-
-Histograms track the size and number of events in buckets, allowing you to measure the distribution of values.
-
-```elixir
-# Create a histogram with custom buckets
-histogram = Oak.Metric.Histogram.new("request_duration", "Request duration", [0.1, 0.5, 1.0], %{endpoint: "/api"})
-
-# Observe a value
+# Histogram: counts observations in buckets
+histogram = Oak.Metric.Histogram.new("request_duration", "Request duration", [0.1, 0.5, 1.0])
 histogram = Oak.Metric.Histogram.observe(histogram, 0.3)
 
-# Get statistics
-sum = Oak.Metric.Histogram.sum(histogram)
-count = Oak.Metric.Histogram.count(histogram)
-bucket_counts = Oak.Metric.Histogram.bucket_counts(histogram)
-```
-
-### Summary
-
-Summaries track the size and number of events, providing quantiles over sliding time windows.
-
-```elixir
-# Create a summary with custom quantiles
-summary = Oak.Metric.Summary.new("response_size", "Response size in bytes", [0.5, 0.9, 0.95], %{service: "auth"})
-
-# Observe a value
+# Summary: observations with quantiles
+summary = Oak.Metric.Summary.new("response_size", "Response size in bytes", [0.5, 0.9])
 summary = Oak.Metric.Summary.observe(summary, 1024)
-
-# Get statistics
-sum = Oak.Metric.Summary.sum(summary)
-count = Oak.Metric.Summary.count(summary)
-observations = Oak.Metric.Summary.observations(summary)
-
-# Calculate quantiles
 median = Oak.Metric.Summary.quantile(summary, 0.5)
-
-p90 = Oak.Metric.Summary.quantile(summary, 0.9)
 ```
 
 ## Metrics Store
 
-The `Oak.MetricsStore` provides a centralized GenServer-based storage for all metrics.
+`Oak.MetricsStore` is a GenServer that holds all metrics.
 
 ```elixir
-# Start the store
 {:ok, store} = Oak.MetricsStore.start_link()
-{:ok, store} = Oak.MetricsStore.start_link(%{initial: "metrics"})
 
-# Update a metric in place (created on first use)
-Oak.MetricsStore.inc(store, counter)
-
-# Register a fully built metric
 Oak.Prometheus.push_metric(store, metric)
-
-# Get a specific metric
 metric = Oak.Prometheus.get_metric(store, metric_id)
-
-# Get all metrics
 all_metrics = Oak.Prometheus.get_metrics(store)
 
-# Stop the store (registered under Oak.MetricsStore, so no argument)
-Oak.MetricsStore.stop()
+Oak.MetricsStore.stop()  # registered name, no argument
 ```
 
 ### Atomic Updates
 
-Use the update functions to change a stored metric in one step. The store applies
-the change itself, so concurrent callers never overwrite each other's updates.
-If the metric doesn't exist yet, the given metric is used as the starting point.
+Update a stored metric in one step. The store applies the change, so concurrent callers never overwrite each other. A missing metric is created from the given one.
 
 ```elixir
-counter = Oak.Metric.Counter.new("http_requests_total", "Total HTTP requests", %{method: "GET"})
-Oak.MetricsStore.inc(store, counter)        # increment by 1
-Oak.MetricsStore.inc(store, counter, 5)     # increment by 5
+Oak.MetricsStore.inc(store, counter, 5)
+Oak.MetricsStore.set(store, gauge, 12)
+Oak.MetricsStore.dec(store, gauge, 3)
+Oak.MetricsStore.observe(store, histogram, 0.3)  # also works for summaries
 
-gauge = Oak.Metric.Gauge.new("queue_depth", "Jobs waiting")
-Oak.MetricsStore.set(store, gauge, 12)      # set to a value
-Oak.MetricsStore.inc(store, gauge)          # increment
-Oak.MetricsStore.dec(store, gauge, 3)       # decrement
-
-histogram = Oak.Metric.Histogram.new("request_duration", "Request duration", [0.1, 0.5, 1.0])
-Oak.MetricsStore.observe(store, histogram, 0.3)   # works for summaries too
-
-# Apply any function to the stored metric
 Oak.MetricsStore.update(store, counter, &Oak.Metric.Counter.set(&1, 100))
 ```
 
-If an update fails (for example, a negative counter increment), the function returns
-`{:error, exception}` and the stored metrics are left unchanged.
+On failure (e.g. a negative counter increment) the function returns `{:error, exception}` and stored metrics are unchanged.
 
 ## Prometheus Integration
 
-The `Oak.Prometheus` module provides high-level functions for working with the metrics store and generating Prometheus-compatible output.
-
 ```elixir
-# Get all metrics from store
-metrics = Oak.Prometheus.get_metrics(store)
-
-# Push a single metric
-Oak.Prometheus.push_metric(store, metric)
-
-# Push multiple metrics
-Oak.Prometheus.push_metrics(store, [metric1, metric2, metric3])
-
-# Collect runtime metrics (Erlang/OTP stats)
-Oak.Prometheus.collect_runtime_metrics(store)
-
-# Output metrics in Prometheus format
-prometheus_output = Oak.Prometheus.output_metrics(store)
-
-# Format a list of metrics
-formatted = Oak.Prometheus.format_metrics([metric1, metric2])
+Oak.Prometheus.push_metrics(store, [metric1, metric2])
+Oak.Prometheus.collect_runtime_metrics(store)  # Erlang/OTP stats
+Oak.Prometheus.output_metrics(store)           # exposition format
 ```
 
-### Prometheus Output Format
-
-The library generates standard Prometheus exposition format:
+Output looks like:
 
 ```
 # HELP http_requests_total Total HTTP requests
 # TYPE http_requests_total counter
 http_requests_total{method="GET"} 42
-
-# HELP memory_usage Memory usage in bytes
-# TYPE memory_usage gauge
-memory_usage{instance="web"} 1024
 ```
 
-### Development Setup
+## Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/clivern/oak.git
-cd oak
-
-# Install dependencies
-make deps
-
-# Run tests
-make ci
-
-# Run formatting
-make fmt
+make deps   # install dependencies
+make ci     # run tests
+make fmt    # format code
 ```
 
 ## Contributing
@@ -271,4 +123,4 @@ If you discover a security vulnerability within Oak, please send an email to [he
 
 © 2024, Clivern. Released under [MIT License](https://opensource.org/licenses/mit-license.php).
 
-**Oak** is authored and maintained by [@clivern](http://github.com/clivern).
+**Oak** is maintained by [@clivern](http://github.com/clivern).
